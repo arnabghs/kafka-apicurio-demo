@@ -3,6 +3,7 @@ package io.apicurio.registry.examples.simple.avro;
 import io.apicurio.registry.serde.SerdeConfig;
 import io.apicurio.registry.serde.avro.AvroKafkaDeserializer;
 import io.apicurio.registry.serde.avro.AvroKafkaSerializer;
+import io.apicurio.registry.serde.avro.strategy.RecordIdStrategy;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -66,8 +67,7 @@ public class SimpleAvroExample {
                 // Use the schema to create a record
                 GenericRecord record = new GenericData.Record(schema);
                 Date now = new Date();
-                String message = "Hello (" + producedMessages++ + ")!";
-                record.put("Message", message);
+                record.put("Message", "Hello (" + producedMessages++ + ")!");
                 record.put("Time",  now.getTime());
 
                 // Send/produce the message on the Kafka Producer
@@ -139,12 +139,21 @@ public class SimpleAvroExample {
         props.putIfAbsent(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, SERVERS);
         props.putIfAbsent(ProducerConfig.CLIENT_ID_CONFIG, "Producer-" + TOPIC_NAME);
         props.putIfAbsent(ProducerConfig.ACKS_CONFIG, "all");
+
+        // Because key is usually string or uuid, hence we use string serializer
         props.putIfAbsent(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         // Use the Apicurio Registry provided Kafka Serializer for Avro
         props.putIfAbsent(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, AvroKafkaSerializer.class.getName());
+        // Since default behavior typically focuses on value schemas because they are the most commonly used in
+        // message payloads, default schema lookup/naming convention is TopicName-value
 
         // Configure Service Registry location
         props.putIfAbsent(SerdeConfig.REGISTRY_URL, REGISTRY_URL);
+
+        // Default schema Lookup / Referencing strategy is - TopicIdStrategy.
+        // To change to other strategy of schema names, follow these
+        //props.putIfAbsent(SerdeConfig.ARTIFACT_RESOLVER_STRATEGY, RecordIdStrategy.class.getName());
+
         // Register the artifact if not found in the registry.
         props.putIfAbsent(SerdeConfig.AUTO_REGISTER_ARTIFACT, "true");
         props.putIfAbsent(SerdeConfig.ENABLE_HEADERS, "true");
