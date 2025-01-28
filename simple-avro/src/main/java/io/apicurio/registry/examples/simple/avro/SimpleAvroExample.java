@@ -3,7 +3,6 @@ package io.apicurio.registry.examples.simple.avro;
 import io.apicurio.registry.serde.SerdeConfig;
 import io.apicurio.registry.serde.avro.AvroKafkaDeserializer;
 import io.apicurio.registry.serde.avro.AvroKafkaSerializer;
-import io.apicurio.registry.serde.avro.strategy.RecordIdStrategy;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -14,7 +13,6 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
@@ -40,11 +38,9 @@ import java.util.Properties;
  *   <li>Kafka must be running on localhost:29092</li>
  *   <li>Apicurio Registry must be running on localhost:8080</li>
  * </ul>
- *
  */
 public class SimpleAvroExample {
-
-    private static final String REGISTRY_URL = "http://localhost:8080"; // apicurio-server
+    private static final String REGISTRY_URL = "https://company-api-domain/schreg"; // APIM gateway endpoint ( Core registry v2 API)
     private static final String SERVERS = "localhost:9092";
     private static final String TOPIC_NAME = SimpleAvroExample.class.getSimpleName();
     private static final String SUBJECT_NAME = "Greeting";
@@ -68,7 +64,7 @@ public class SimpleAvroExample {
                 GenericRecord record = new GenericData.Record(schema);
                 Date now = new Date();
                 record.put("Message", "Hello (" + producedMessages++ + ")!");
-                record.put("Time",  now.getTime());
+                record.put("Time", now.getTime());
 
                 // Send/produce the message on the Kafka Producer
                 ProducerRecord<Object, Object> producedRecord = new ProducerRecord<>(topicName, subjectName, record);
@@ -80,15 +76,13 @@ public class SimpleAvroExample {
                         System.err.println("Failed to send message: " + exception);
                         System.err.println("Failed to send message: " + exception);
                     }
-                }); 
+                });
 
             }
-        }
-            catch(Exception e)  {
-              e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
 
-            }
-        finally {
+        } finally {
             System.out.println("Closing the producer.");
             producer.flush();
             System.out.println("flushed the producer");
@@ -132,7 +126,7 @@ public class SimpleAvroExample {
     /**
      * Creates the Kafka producer.
      */
-    private static Producer<Object, Object> createKafkaProducer (){
+    private static Producer<Object, Object> createKafkaProducer() {
         Properties props = new Properties();
 
         // Configure kafka settings
@@ -198,23 +192,14 @@ public class SimpleAvroExample {
     }
 
     private static void configureSecurityIfPresent(Properties props) {
-        System.out.println("----------Bypassing security----------");
-//        final String tokenEndpoint = "XXXX";
-//        if (tokenEndpoint != null) {
-//
-//            final String authUser = xxxx;
-//            final String authPwd = xxxx;
-//
-//            props.putIfAbsent(SerdeConfig.AUTH_USERNAME, authUser);
-//            props.putIfAbsent(SerdeConfig.AUTH_PASSWORD, authPwd);
-//            /*props.putIfAbsent(SaslConfigs.SASL_MECHANISM, "OAUTHBEARER");
-//            props.putIfAbsent(SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS, "io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler");
-//            props.putIfAbsent("security.protocol", "SASL_SSL");
-//            props.putIfAbsent(SerdeConfig.AUTH_TOKEN_ENDPOINT, tokenEndpoint);
-//            props.putIfAbsent(SaslConfigs.SASL_JAAS_CONFIG, String.format("org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required " +
-//                    "  oauth.client.id=\"%s\" "+
-//                    "  oauth.client.secret=\"%s\" "+
-//                    "  oauth.token.endpoint.uri=\"%s\" ;", authClient, authSecret, tokenEndpoint)); */
-//        }
+        // working with OAuth in Lab env
+        final String tokenEndpoint = "XXX";
+        final String authClientId = "XXX";
+        final String authClientSecret = "XXX";
+        props.putIfAbsent(SerdeConfig.AUTH_CLIENT_ID, authClientId);
+        props.putIfAbsent(SerdeConfig.AUTH_CLIENT_SECRET, authClientSecret);
+        props.putIfAbsent(SerdeConfig.AUTH_TOKEN_ENDPOINT, tokenEndpoint);
+        // the common authenticator app URL
+        props.putIfAbsent("apicurio.auth.client.scope", "https://api.YYY.com/.default");
     }
 }
