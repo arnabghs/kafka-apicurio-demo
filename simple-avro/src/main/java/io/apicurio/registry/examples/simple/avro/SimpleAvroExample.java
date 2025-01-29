@@ -1,8 +1,5 @@
 package io.apicurio.registry.examples.simple.avro;
 
-import io.apicurio.registry.serde.SerdeConfig;
-import io.apicurio.registry.serde.avro.AvroKafkaDeserializer;
-import io.apicurio.registry.serde.avro.AvroKafkaSerializer;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -15,6 +12,8 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -40,17 +39,15 @@ import java.util.Properties;
  * </ul>
  */
 public class SimpleAvroExample {
-    private static final String REGISTRY_URL = "https://company-api-domain/schreg"; // APIM gateway endpoint ( Core registry v2 API)
+    private static final String REGISTRY_URL = "http://localhost:8080/apis/ccompat/v7"; // apicurio-server
     private static final String SERVERS = "localhost:9092";
-    private static final String TOPIC_NAME = SimpleAvroExample.class.getSimpleName();
-    private static final String SUBJECT_NAME = "Greeting";
+    private static final String TOPIC_NAME = "MY_CONFLUENT_TOPIC-3";
+    private static final String KEY = "key1";
     private static final String SCHEMA = "{\"type\":\"record\",\"name\":\"Greeting\",\"fields\":[{\"name\":\"Message\",\"type\":\"string\"},{\"name\":\"Time\",\"type\":\"long\"}]}";
 
 
     public static final void main(String[] args) throws Exception {
         System.out.println("Starting example " + SimpleAvroExample.class.getSimpleName());
-        String topicName = TOPIC_NAME;
-        String subjectName = SUBJECT_NAME;
 
         // Create the producer.
         Producer<Object, Object> producer = createKafkaProducer();
@@ -67,7 +64,7 @@ public class SimpleAvroExample {
                 record.put("Time", now.getTime());
 
                 // Send/produce the message on the Kafka Producer
-                ProducerRecord<Object, Object> producedRecord = new ProducerRecord<>(topicName, subjectName, record);
+                ProducerRecord<Object, Object> producedRecord = new ProducerRecord<>(TOPIC_NAME, KEY, record);
                 producer.send(producedRecord, (metadata, exception) ->
                 {
                     if (exception == null) {
@@ -95,8 +92,8 @@ public class SimpleAvroExample {
         KafkaConsumer<String, GenericRecord> consumer = createKafkaConsumer();
 
         // Subscribe to the topic
-        System.out.println("Subscribing to topic " + topicName);
-        consumer.subscribe(Collections.singletonList(topicName));
+        System.out.println("Subscribing to topic " + TOPIC_NAME);
+        consumer.subscribe(Collections.singletonList(TOPIC_NAME));
 
         // Consume the  messages.
         try {
@@ -136,22 +133,9 @@ public class SimpleAvroExample {
 
         // Because key is usually string or uuid, hence we use string serializer
         props.putIfAbsent(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        // Use the Apicurio Registry provided Kafka Serializer for Avro
-        props.putIfAbsent(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, AvroKafkaSerializer.class.getName());
-        // Since default behavior typically focuses on value schemas because they are the most commonly used in
-        // message payloads, default schema lookup/naming convention is TopicName-value
-
-        // Configure Service Registry location
-        props.putIfAbsent(SerdeConfig.REGISTRY_URL, REGISTRY_URL);
-
-        // Default schema Lookup / Referencing strategy is - TopicIdStrategy.
-        // To change to other strategy of schema names, follow these
-        //props.putIfAbsent(SerdeConfig.ARTIFACT_RESOLVER_STRATEGY, RecordIdStrategy.class.getName());
-
-        // Register the artifact if not found in the registry.
-        props.putIfAbsent(SerdeConfig.AUTO_REGISTER_ARTIFACT, "true");
-        props.putIfAbsent(SerdeConfig.ENABLE_HEADERS, "true");
-        //props.putIfAbsent(SerdeConfig.EXPLICIT_ARTIFACT_ID, SUBJECT_NAME);
+        // Use the Confluent provided Kafka Serializer for Avro
+         props.putIfAbsent(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class.getName());
+         props.putIfAbsent("schema.registry.url", REGISTRY_URL);
 
         //Just if security values are present, then we configure them.
         configureSecurityIfPresent(props);
@@ -174,11 +158,11 @@ public class SimpleAvroExample {
         props.putIfAbsent(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
         props.putIfAbsent(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         props.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        // Use the Apicurio Registry provided Kafka Deserializer for Avro
-        props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, AvroKafkaDeserializer.class.getName());
+        // Use the Confluent provided Kafka Deserializer for Avro
+         props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
+         props.putIfAbsent("schema.registry.url", REGISTRY_URL);
 
-        // Configure Service Registry location
-        props.putIfAbsent(SerdeConfig.REGISTRY_URL, REGISTRY_URL);
+
         // No other configuration needed for the deserializer, because the globalId of the schema
         // the deserializer should use is sent as part of the payload.  So the deserializer simply
         // extracts that globalId and uses it to look up the Schema from the registry.
@@ -192,14 +176,6 @@ public class SimpleAvroExample {
     }
 
     private static void configureSecurityIfPresent(Properties props) {
-        // working with OAuth in Lab env
-        final String tokenEndpoint = "XXX";
-        final String authClientId = "XXX";
-        final String authClientSecret = "XXX";
-        props.putIfAbsent(SerdeConfig.AUTH_CLIENT_ID, authClientId);
-        props.putIfAbsent(SerdeConfig.AUTH_CLIENT_SECRET, authClientSecret);
-        props.putIfAbsent(SerdeConfig.AUTH_TOKEN_ENDPOINT, tokenEndpoint);
-        // the common authenticator app URL
-        props.putIfAbsent("apicurio.auth.client.scope", "https://api.YYY.com/.default");
+        // No Security
     }
 }
