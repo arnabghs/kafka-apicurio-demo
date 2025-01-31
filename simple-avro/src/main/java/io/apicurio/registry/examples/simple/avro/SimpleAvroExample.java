@@ -14,6 +14,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -39,7 +40,7 @@ import java.util.Properties;
  * </ul>
  */
 public class SimpleAvroExample {
-    private static final String REGISTRY_URL = "http://localhost:8080/apis/ccompat/v7"; // apicurio-server
+    private static final String REGISTRY_URL = "https://company-api-domain/schreg/compatibility/apis/ccompat/v6"; // apicurio-server
     private static final String SERVERS = "localhost:9092";
     private static final String TOPIC_NAME = "MY_CONFLUENT_TOPIC-3";
     private static final String KEY = "key1";
@@ -70,7 +71,6 @@ public class SimpleAvroExample {
                     if (exception == null) {
                         System.out.println("Sent record: " + producedRecord + metadata.partition() + " with offset " + metadata.offset());
                     } else {
-                        System.err.println("Failed to send message: " + exception);
                         System.err.println("Failed to send message: " + exception);
                     }
                 });
@@ -135,7 +135,7 @@ public class SimpleAvroExample {
         props.putIfAbsent(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         // Use the Confluent provided Kafka Serializer for Avro
          props.putIfAbsent(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class.getName());
-         props.putIfAbsent("schema.registry.url", REGISTRY_URL);
+         props.putIfAbsent(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, REGISTRY_URL);
 
         //Just if security values are present, then we configure them.
         configureSecurityIfPresent(props);
@@ -160,7 +160,7 @@ public class SimpleAvroExample {
         props.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         // Use the Confluent provided Kafka Deserializer for Avro
          props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
-         props.putIfAbsent("schema.registry.url", REGISTRY_URL);
+         props.putIfAbsent(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, REGISTRY_URL);
 
 
         // No other configuration needed for the deserializer, because the globalId of the schema
@@ -177,5 +177,11 @@ public class SimpleAvroExample {
 
     private static void configureSecurityIfPresent(Properties props) {
         // No Security
+        final String BEARER_TOKEN = "Generate token";
+
+
+        // BEARER TOKEN configuration
+        props.putIfAbsent(AbstractKafkaSchemaSerDeConfig.BEARER_AUTH_CREDENTIALS_SOURCE,  AbstractKafkaSchemaSerDeConfig.BEARER_AUTH_CREDENTIALS_SOURCE_DEFAULT);
+        props.putIfAbsent(AbstractKafkaSchemaSerDeConfig.BEARER_AUTH_TOKEN_CONFIG,  BEARER_TOKEN);
     }
 }
