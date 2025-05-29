@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: apicurio_postgres
+    environment:
+      POSTGRES_DB: apicurio
+      POSTGRES_USER: apicurio
+      POSTGRES_PASSWORD: apicurio
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.1
+    container_name: keycloak
+    command: start-dev
+    depends_on:
+      - postgres
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/apicurio
+      KC_DB_USERNAME: apicurio
+      KC_DB_PASSWORD: apicurio
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8081:8080"
+
+  registry:
+    image: apicurio/apicurio-registry:latest
+    container_name: apicurio_registry
+    depends_on:
+      - postgres
+      - keycloak
+    environment:
+      # Storage
+      APICURIO_STORAGE_KIND: sql
+      APICURIO_STORAGE_SQL_KIND: postgresql
+      APICURIO_DATASOURCE_URL: jdbc:postgresql://postgres:5432/apicurio
+      APICURIO_DATASOURCE_USERNAME: apicurio
+      APICURIO_DATASOURCE_PASSWORD: apicurio
+      APICURIO_DB_INITIALIZE: "true"
+  
+      # Auth (critical fixes)
+      AUTH_ENABLED: 'true'
+      CLIENT_CREDENTIALS_BASIC_AUTH_ENABLED: 'true'
+      ROLE_BASED_AUTHZ_ENABLED: 'true'
+
+    #   REGISTRY_AUTH_ENABLED: 'true'
+    #   REGISTRY_CLIENT_CREDENTIALS_BASIC_AUTH_ENABLED: 'true'
+    #   REGISTRY_ROLE_BASED_AUTHZ_ENABLED: 'true'
+
+    #   APICURIO_AUTH_ENABLED: 'true'
+    #   APICURIO_CLIENT_CREDENTIALS_BASIC_AUTH_ENABLED: 'true'
+    #   APICURIO_ROLE_BASED_AUTHZ_ENABLED: 'true'
+      
+    #   REGISTRY_AUTH_ENABLED: "true"
+      REGISTRY_AUTH_ANONYMOUS_READ_ACCESS_ENABLED: "false"
+      REGISTRY_AUTH_TYPE: 'oidc'
+      QUARKUS_OIDC_ENABLED: "true"
+      QUARKUS_OIDC_TENANT_ENABLED: 'true'
+      QUARKUS_OIDC_AUTH_SERVER_URL: http://keycloak:8080/realms/apicurio
+      QUARKUS_OIDC_TOKEN_ISSUER: http://localhost:8081/realms/apicurio
+      QUARKUS_OIDC_CLIENT_ID: apicurio
+      QUARKUS_OIDC_CREDENTIALS_SECRET: xxx
+      QUARKUS_OIDC_TLS_VERIFICATION: none
+      QUARKUS_OIDC_APPLICATION_TYPE: service
+      QUARKUS_HTTP_CORS_ORIGINS: /.*/  # Allow all origins
+  
+      # Logging (add OIDC debug)
+      QUARKUS_LOG_LEVEL: DEBUG
+      QUARKUS_LOG_CATEGORY__IO_APICURIO__LEVEL: DEBUG
+      QUARKUS_LOG_CATEGORY__IO_QUARKUS_OIDC__LEVEL: DEBUG  # New OIDC logging
+
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
