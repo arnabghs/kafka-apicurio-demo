@@ -1,5 +1,6 @@
 package io.apicurio.registry.examples.simple.avro;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -40,18 +41,21 @@ import java.util.Properties;
  * </ul>
  */
 public class SimpleAvroExample {
-    private static final String REGISTRY_URL = "https://company-api-domain/schreg/compatibility/apis/ccompat/v6"; // apicurio-server
-    private static final String SERVERS = "localhost:9092";
     private static final String TOPIC_NAME = "MY_CONFLUENT_TOPIC-3";
     private static final String KEY = "key1";
     private static final String SCHEMA = "{\"type\":\"record\",\"name\":\"Greeting\",\"fields\":[{\"name\":\"Message\",\"type\":\"string\"},{\"name\":\"Time\",\"type\":\"long\"}]}";
 
 
     public static final void main(String[] args) throws Exception {
+        Dotenv dotenv = Dotenv.load();
+        String SERVERS = dotenv.get("KAFKA_BOOTSTRAP_SERVERS");
+        String REGISTRY_URL = dotenv.get("SCHEMA_REGISTRY_URL");
+        String BEARER_TOKEN = dotenv.get("BEARER_TOKEN");
+
         System.out.println("Starting example " + SimpleAvroExample.class.getSimpleName());
 
         // Create the producer.
-        Producer<Object, Object> producer = createKafkaProducer();
+        Producer<Object, Object> producer = createKafkaProducer(SERVERS, REGISTRY_URL, BEARER_TOKEN);
         // Produce 2 messages.
         int producedMessages = 0;
         try {
@@ -89,7 +93,7 @@ public class SimpleAvroExample {
 
         // Create the consumer
         System.out.println("Creating the consumer.");
-        KafkaConsumer<String, GenericRecord> consumer = createKafkaConsumer();
+        KafkaConsumer<String, GenericRecord> consumer = createKafkaConsumer(SERVERS, REGISTRY_URL, BEARER_TOKEN);
 
         // Subscribe to the topic
         System.out.println("Subscribing to topic " + TOPIC_NAME);
@@ -123,7 +127,7 @@ public class SimpleAvroExample {
     /**
      * Creates the Kafka producer.
      */
-    private static Producer<Object, Object> createKafkaProducer() {
+    private static Producer<Object, Object> createKafkaProducer(String SERVERS,String REGISTRY_URL, String BEARER_TOKEN) {
         Properties props = new Properties();
 
         // Configure kafka settings
@@ -138,7 +142,7 @@ public class SimpleAvroExample {
          props.putIfAbsent(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, REGISTRY_URL);
 
         //Just if security values are present, then we configure them.
-        configureSecurityIfPresent(props);
+        configureSecurityIfPresent(props, BEARER_TOKEN);
 
         // Create the Kafka producer
         Producer<Object, Object> producer = new KafkaProducer<>(props);
@@ -148,7 +152,7 @@ public class SimpleAvroExample {
     /**
      * Creates the Kafka consumer.
      */
-    private static KafkaConsumer<String, GenericRecord> createKafkaConsumer() {
+    private static KafkaConsumer<String, GenericRecord> createKafkaConsumer(String SERVERS, String REGISTRY_URL, String BEARER_TOKEN) {
         Properties props = new Properties();
 
         // Configure Kafka
@@ -168,18 +172,14 @@ public class SimpleAvroExample {
         // extracts that globalId and uses it to look up the Schema from the registry.
 
         //Just if security values are present, then we configure them.
-        configureSecurityIfPresent(props);
+        configureSecurityIfPresent(props, BEARER_TOKEN);
 
         // Create the Kafka Consumer
         KafkaConsumer<String, GenericRecord> consumer = new KafkaConsumer<>(props);
         return consumer;
     }
 
-    private static void configureSecurityIfPresent(Properties props) {
-        // No Security
-        final String BEARER_TOKEN = "Generate token";
-
-
+    private static void configureSecurityIfPresent(Properties props, String BEARER_TOKEN) {
         // BEARER TOKEN configuration
         props.putIfAbsent(AbstractKafkaSchemaSerDeConfig.BEARER_AUTH_CREDENTIALS_SOURCE,  AbstractKafkaSchemaSerDeConfig.BEARER_AUTH_CREDENTIALS_SOURCE_DEFAULT);
         props.putIfAbsent(AbstractKafkaSchemaSerDeConfig.BEARER_AUTH_TOKEN_CONFIG,  BEARER_TOKEN);
